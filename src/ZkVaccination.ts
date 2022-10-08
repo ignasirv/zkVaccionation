@@ -9,6 +9,8 @@ import {
   isReady,
   Encoding,
   UInt64,
+  DeployArgs,
+  Permissions,
 } from 'snarkyjs';
 
 export { isReady, Field, Encoding };
@@ -27,15 +29,7 @@ export const users = {
   issuer: PrivateKey.fromBase58(
     'EKFAdBGSSXrBbaCVqy4YjwWHoGEnsqYRQTqz227Eb5bzMx2bWu3F'
   ),
-  verifier: PrivateKey.fromBase58(
-    'EKEitxmNYYMCyumtKr8xi1yPpY3Bq6RZTEQsozu2gGf44cNxowmg'
-  ),
-  user: PrivateKey.fromBase58(
-    'EKE9qUDcfqf6Gx9z6CNuuDYPe4XQQPzFBCfduck2X4PeFQJkhXtt'
-  ),
 };
-
-export const db = {};
 
 export class ZkVaccination extends SmartContract {
   // On-chain state definitions
@@ -45,36 +39,48 @@ export class ZkVaccination extends SmartContract {
   @state(Field) vaccinationCount = State<Field>();
   @state(UInt64) lastVaccinationTime = State<UInt64>();
 
+  deploy(args: DeployArgs) {
+    super.deploy(args);
+    this.setPermissions({
+      ...Permissions.default(),
+      editState: Permissions.proofOrSignature(),
+    });
+  }
+
   @method init() {
     // Define initial values of on-chain state
     this.issuer.set(users['issuer'].toPublicKey());
-    this.verifier.set(users['verifier'].toPublicKey());
-    this.user.set(users['user'].toPublicKey());
     this.vaccinationCount.set(Field.zero);
     this.lastVaccinationTime.set(UInt64.zero);
   }
 
-  @method addVaccination(
-    vaccinatedPublicKey: Field,
-    signerPrivateKey: PrivateKey
-  ) {
+  @method addVaccination(signerPrivateKey: PrivateKey) {
     const issuer = this.issuer.get();
+    this.issuer.assertEquals(this.issuer.get());
     // Check signer is a certified entity
     const signerPublicKey = signerPrivateKey.toPublicKey();
     signerPublicKey.equals(issuer).assertEquals(true);
     // TODO: handle more than one user
     //Update vaccination count
-    this.vaccinationCount.set(this.vaccinationCount.get().add(1));
+    const vaccinationCount = this.vaccinationCount.get();
+    this.vaccinationCount.assertEquals(this.vaccinationCount.get());
+    this.vaccinationCount.set(vaccinationCount.add(1));
     //Update vaccination timestamp
-    this.lastVaccinationTime.set(this.network.timestamp.get());
+    const timestamp = this.network.timestamp.get();
+    this.network.timestamp.assertEquals(this.network.timestamp.get());
+    this.lastVaccinationTime.set(timestamp);
   }
 
   @method checkVaccination() {
     // Check has more than 2 vaccination and last vaccination is less than 9 months ago
-    this.vaccinationCount.get().assertGt(1);
+    const vaccinationCount = this.vaccinationCount.get();
+    this.vaccinationCount.assertEquals(this.vaccinationCount.get());
+    vaccinationCount.assertGt(1);
     const expirationTime = this.lastVaccinationTime.get();
+    const lastVaccinationTime = this.lastVaccinationTime.get();
+    this.lastVaccinationTime.assertEquals(this.lastVaccinationTime.get());
     this.network.timestamp.assertBetween(
-      this.lastVaccinationTime.get(),
+      lastVaccinationTime,
       expirationTime.add(23668200000)
     );
   }
