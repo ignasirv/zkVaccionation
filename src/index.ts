@@ -1,3 +1,3 @@
-import { Add } from './Add.js';
+import { ZkVaccination } from './ZkVaccination';
 
-export { Add };
+export { ZkVaccination };
